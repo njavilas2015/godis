@@ -1,80 +1,27 @@
 package queue
 
-import (
-	"sync"
-
-	core "github.com/njavilas2015/godis/core"
-)
-
-type Command struct {
-	ID        string
-	Operation string
-	Key       string
-	Value     string
+type Job struct {
+	ID       string
+	Request  string
+	Response chan string
 }
 
-type CommandQueue struct {
-	data []Command
-	mu   sync.Mutex
+type Queue struct {
+	jobs chan *Job
 }
 
-func NewCommandQueue() *CommandQueue {
-
-	return &CommandQueue{
-		data: make([]Command, 0),
+func NewQueue(bufferSize int) *Queue {
+	return &Queue{
+		jobs: make(chan *Job, bufferSize),
 	}
 }
 
-func (cq *CommandQueue) Enqueue(cmd Command) {
-
-	cq.mu.Lock()
-
-	defer cq.mu.Unlock()
-
-	cq.data = append(cq.data, cmd)
+func (q *Queue) Add(job *Job) {
+	q.jobs <- job
 }
 
-func (cq *CommandQueue) Dequeue(cmd Command) {
-
-	cq.mu.Lock()
-
-	defer cq.mu.Unlock()
-
-	cq.data = append(cq.data, cmd)
-}
-
-func (cq *CommandQueue) IsEmpty() bool {
-
-	cq.mu.Lock()
-
-	defer cq.mu.Unlock()
-
-	return len(cq.data) == 0
-}
-
-func (cq *CommandQueue) Start(operation string, args []string) {
-
-	if Tracker.IsProcessed(cmd.ID) {
-		return
+func (q *Queue) Process(worker func(*Job)) {
+	for job := range q.jobs {
+		worker(job)
 	}
-
-	result, err := core.Dispatcher.Execute(operation, args)
-
-	if err != nil {
-		return "(nil)"
-	}
-
-	return result
-
-	go func() {
-		for {
-			cmd, ok := cq.Dequeue()
-			if !ok {
-				continue
-			}
-			cq.ProcessCommand(cmd, store)
-		}
-	}()
-
-	Tracker.MarkProcessed(cmd.ID)
 }

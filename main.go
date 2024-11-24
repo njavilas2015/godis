@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/njavilas2015/godis/queue"
 	"github.com/njavilas2015/godis/server"
 )
 
@@ -12,9 +13,11 @@ func main() {
 
 	log.Printf("Welcome to Godis! starting in %v", port)
 
-	err := server.Start(port)
+	q := queue.NewQueue(100)
+
+	err := server.NewTCPServer(port, q)
 
 	if err != nil {
-		log.Fatalf("Error starting Godis :(")
+		log.Fatalf("error starting Godis :( %v", err)
 	}
 }

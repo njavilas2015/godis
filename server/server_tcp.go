@@ -4,71 +4,84 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	queue "github.com/njavilas2015/godis/queue"
 )
 
-func Proxy(command string) string {
-
-	parts := strings.Fields(command)
-
-	if len(parts) < 1 {
-		return "ERROR: empty command"
-	}
-
-	queue.NewCommandQueue().Enqueue(queue.CommandQueue{
-		ID:        "1",
-		Operation: "SET",
-		Key:       "foo",
-		Value:     "bar",
-	})
-
-	return queue.Start(parts[0], parts[1:])
+type TCPServer struct {
+	Addr  string
+	Queue *queue.Queue
 }
 
-func handleConnection(socket net.Conn) {
+func NewTCPServer(addr string, q *queue.Queue) *TCPServer {
+	return &TCPServer{
+		Addr:  addr,
+		Queue: q,
+	}
+}
 
-	defer socket.Close()
+func (s *TCPServer) handleConnection(conn net.Conn) {
 
-	reader := bufio.NewReader(socket)
+	defer conn.Close()
 
-	for {
+	scanner := bufio.NewScanner(conn)
 
-		raw, err := reader.ReadString('\n')
+	for scanner.Scan() {
 
-		if err != nil {
+		request := scanner.Text()
 
-			fmt.Printf("Error reading command: %v\n", err)
+		jobID := uuid.New().String()
+
+		responseChan := make(chan string)
+
+		job := &queue.Job{
+			ID:       jobID,
+			Request:  request,
+			Response: responseChan,
 		}
 
-		command := strings.TrimSpace(raw)
+		s.Queue.Add(job)
 
-		response := Proxy(command)
+		select {
+		case response := <-responseChan:
+			conn.Write([]byte(response + "\n"))
+		case <-time.After(5 * time.Second): // Timeout opcional
+			conn.Write([]byte("Error: timeout en la respuesta\n"))
+		}
+	}
 
-		socket.Write([]byte(response + "\n"))
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error leyendo conexión: %v\n", err)
 	}
 }
 
-func Start(port string) error {
+func (s *TCPServer) Start() error {
 
-	listener, err := net.Listen("tcp", ":"+port)
+	listener, err := net.Listen("tcp", s.Addr)
 
 	if err != nil {
-		return fmt.Errorf("could not start the server %v", err)
+		return fmt.Errorf("error iniciando el servidor: %v", err)
 	}
 
 	defer listener.Close()
 
-	for {
+	fmt.Printf("Servidor escuchando en %s\n", s.Addr)
 
-		socket, err := listener.Accept()
+	/*for {
+
+		conn, err := listener.Accept()
 
 		if err != nil {
-			fmt.Printf("Error accepting connection %v\n", err)
+			fmt.Printf("Error aceptando conexión: %v\n", err)
 			continue
 		}
 
-		go handleConnection(socket)
+		go s.handleConnection(conn)
+	}*/
+
+	for {
+
 	}
 }
