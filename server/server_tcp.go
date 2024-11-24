@@ -6,12 +6,10 @@ import (
 	"net"
 	"strings"
 
-	"github.com/njavilas2015/godis/storage"
+	queue "github.com/njavilas2015/godis/queue"
 )
 
-var store *storage.Storage = storage.NewStorage()
-
-func processCommand(command string) string {
+func Proxy(command string) string {
 
 	parts := strings.Fields(command)
 
@@ -19,45 +17,14 @@ func processCommand(command string) string {
 		return "ERROR: empty command"
 	}
 
-	switch strings.ToUpper(parts[0]) {
+	queue.NewCommandQueue().Enqueue(queue.CommandQueue{
+		ID:        "1",
+		Operation: "SET",
+		Key:       "foo",
+		Value:     "bar",
+	})
 
-	case "SET":
-
-		if len(parts) != 3 {
-			return "ERROR: Correct use: SET <key> <value>"
-		}
-
-		store.Set(parts[1], parts[2])
-
-		return "OK"
-
-	case "GET":
-
-		if len(parts) != 2 {
-			return "ERROR: Correct use: GET <key>"
-		}
-
-		value, err := store.Get(parts[1])
-
-		if !err {
-			return "(nil)"
-		}
-
-		return value
-
-	case "DEL":
-
-		if len(parts) != 2 {
-			return "ERROR: Correct use: DEL <key>"
-		}
-
-		store.Delete(parts[1])
-
-		return "OK"
-
-	default:
-		return "ERROR: Unrecognized command"
-	}
+	return queue.Start(parts[0], parts[1:])
 }
 
 func handleConnection(socket net.Conn) {
@@ -77,7 +44,7 @@ func handleConnection(socket net.Conn) {
 
 		command := strings.TrimSpace(raw)
 
-		response := processCommand(command)
+		response := Proxy(command)
 
 		socket.Write([]byte(response + "\n"))
 	}
