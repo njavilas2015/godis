@@ -3,85 +3,67 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
-	"time"
-
-	"github.com/google/uuid"
-	queue "github.com/njavilas2015/godis/queue"
+	"strings"
 )
 
-type TCPServer struct {
-	Addr  string
-	Queue *queue.Queue
-}
+type CallbackFunc func(command string, args []string) <-chan string
 
-func NewTCPServer(addr string, q *queue.Queue) *TCPServer {
-	return &TCPServer{
-		Addr:  addr,
-		Queue: q,
-	}
-}
-
-func (s *TCPServer) handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, callback CallbackFunc) {
 
 	defer conn.Close()
 
-	scanner := bufio.NewScanner(conn)
+	reader := bufio.NewReader(conn)
 
-	for scanner.Scan() {
+	for {
 
-		request := scanner.Text()
+		message, err := reader.ReadString('\n')
 
-		jobID := uuid.New().String()
-
-		responseChan := make(chan string)
-
-		job := &queue.Job{
-			ID:       jobID,
-			Request:  request,
-			Response: responseChan,
+		if err != nil {
+			log.Println("Client disconnected:", err)
+			return
 		}
 
-		s.Queue.Add(job)
+		parts := strings.Fields(strings.TrimSpace(message))
 
-		select {
-		case response := <-responseChan:
-			conn.Write([]byte(response + "\n"))
-		case <-time.After(5 * time.Second): // Timeout opcional
-			conn.Write([]byte("Error: timeout en la respuesta\n"))
+		if len(parts) < 1 {
+			conn.Write([]byte("ERROR: Invalid command format\n"))
+			continue
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error leyendo conexión: %v\n", err)
+		command := strings.ToUpper(parts[0])
+		args := parts[1:]
+
+		responseChan := callback(command, args)
+
+		response := <-responseChan
+
+		conn.Write([]byte(response + "\n"))
 	}
 }
 
-func (s *TCPServer) Start() error {
+func TCPServer(port string, callback CallbackFunc) {
 
-	listener, err := net.Listen("tcp", s.Addr)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 
 	if err != nil {
-		return fmt.Errorf("error iniciando el servidor: %v", err)
+		log.Fatalf("Error starting server: %v\n", err)
 	}
 
 	defer listener.Close()
 
-	fmt.Printf("Servidor escuchando en %s\n", s.Addr)
+	log.Println("Server is running on port 6379...")
 
-	/*for {
+	for {
 
 		conn, err := listener.Accept()
 
 		if err != nil {
-			fmt.Printf("Error aceptando conexión: %v\n", err)
+			log.Println("Error accepting connection:", err)
 			continue
 		}
 
-		go s.handleConnection(conn)
-	}*/
-
-	for {
-
+		go handleConnection(conn, callback)
 	}
 }
