@@ -101,7 +101,7 @@ func (s *KvStorage) Process() {
 	}
 }
 
-func (s *KvStorage) AddJobSet(key, value string) string {
+func (s *KvStorage) AddJobSet(key string, value string) string {
 	job := &JobKvStorage{
 		Command:  "SET",
 		Key:      key,

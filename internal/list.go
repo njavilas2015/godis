@@ -154,7 +154,7 @@ func (ls *ListStorage) LeftPop(job *JobListStore) {
 	job.Response <- val
 }
 
-func (ls *ListStorage) AddJobLeftPush(key, value string) string {
+func (ls *ListStorage) AddJobLeftPush(key string, value string) string {
 
 	job := &JobListStore{
 		Command:  "LPUSH",

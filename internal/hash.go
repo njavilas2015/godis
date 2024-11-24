@@ -64,7 +64,7 @@ func (hs *HashStore) HGet(job *JobHashStore) {
 		if ok {
 			job.Response <- value
 		} else {
-			job.Response <- "NOT FOUND"
+			job.Response <- ""
 		}
 
 	} else {
@@ -86,7 +86,8 @@ func NewHashStorage(bufferSize int) *HashStore {
 	return storage
 }
 
-func (hs *HashStore) AddJobHSet(key, field, value string) string {
+func (hs *HashStore) AddJobHSet(key string, field string, value string) string {
+
 	job := &JobHashStore{
 		Command:  "HSET",
 		Key:      key,
@@ -94,11 +95,13 @@ func (hs *HashStore) AddJobHSet(key, field, value string) string {
 		Value:    value,
 		Response: make(chan string),
 	}
+
 	hs.queue.Add(job)
+
 	return <-job.Response
 }
 
-func (hs *HashStore) AddJobHGet(key, field string) string {
+func (hs *HashStore) AddJobHGet(key string, field string) string {
 	job := &JobHashStore{
 		Command:  "HGET",
 		Key:      key,
@@ -147,7 +150,31 @@ func HandlerHashStore(command string, args []string) <-chan string {
 				return
 			}
 
-			response <- Hs.AddJobHSet(args[0], args[1], args[2])
+			key := args[0]
+
+			keyValue := args[1:]
+
+			index := len(keyValue)
+
+			if !IsEven(index) {
+
+				response <- "ERROR: HSET incorrectly configured"
+
+				return
+			}
+
+			for i := range keyValue {
+
+				if i == 0 {
+					continue
+				}
+
+				if IsEven(i) {
+					continue
+				}
+
+				response <- Hs.AddJobHSet(key, args[i], args[i+1])
+			}
 
 		case "HGET":
 

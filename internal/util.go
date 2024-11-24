@@ -8,3 +8,7 @@ func ValidateArgs(command string, args []string, expected int) (bool, string) {
 	}
 	return true, ""
 }
+
+func IsEven(n int) bool {
+	return n%2 == 0
+}
