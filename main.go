@@ -7,7 +7,17 @@ import (
 
 func main() {
 
-	go internal.Hs.Process()
+	servers := []server.ServerTCP{
+		{Port: "6480", Handler: internal.HandlerHashStore},
+		{Port: "6481", Handler: internal.HandlerKvStore},
+		{Port: "6482", Handler: internal.HandlerListStore},
+		{Port: "6483", Handler: internal.HandlerSetStorage},
+	}
 
-	server.TCPServer("6379", internal.Handler)
+	for _, s := range servers {
+
+		go server.TCPServer(s.Port, s.Handler)
+	}
+
+	select {}
 }

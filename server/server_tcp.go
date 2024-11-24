@@ -10,6 +10,11 @@ import (
 
 type CallbackFunc func(command string, args []string) <-chan string
 
+type ServerTCP struct {
+	Port    string
+	Handler CallbackFunc
+}
+
 func handleConnection(conn net.Conn, callback CallbackFunc) {
 
 	defer conn.Close()
@@ -33,6 +38,7 @@ func handleConnection(conn net.Conn, callback CallbackFunc) {
 		}
 
 		command := strings.ToUpper(parts[0])
+
 		args := parts[1:]
 
 		responseChan := callback(command, args)
@@ -45,7 +51,9 @@ func handleConnection(conn net.Conn, callback CallbackFunc) {
 
 func TCPServer(port string, callback CallbackFunc) {
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+	raw_port := fmt.Sprintf(":%s", port)
+
+	listener, err := net.Listen("tcp", raw_port)
 
 	if err != nil {
 		log.Fatalf("Error starting server: %v\n", err)
@@ -53,7 +61,7 @@ func TCPServer(port string, callback CallbackFunc) {
 
 	defer listener.Close()
 
-	log.Println("Server is running on port 6379...")
+	log.Println("server is running on port ...", raw_port)
 
 	for {
 

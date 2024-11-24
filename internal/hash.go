@@ -22,7 +22,9 @@ type HashStore struct {
 	queue *QueueHashStore
 }
 
-func NewQueue(bufferSize int) *QueueHashStore {
+type CommandHandlerHashStore func(job *JobHashStore)
+
+func NewQueueHashStore(bufferSize int) *QueueHashStore {
 	return &QueueHashStore{
 		jobs: make(chan *JobHashStore, bufferSize),
 	}
@@ -74,27 +76,14 @@ func (hs *HashStore) HGet(job *JobHashStore) {
 
 func NewHashStorage(bufferSize int) *HashStore {
 
-	hs := &HashStore{
+	storage := &HashStore{
 		data:  make(map[string]map[string]string),
-		queue: NewQueue(bufferSize),
+		queue: NewQueueHashStore(bufferSize),
 	}
 
-	go hs.Process()
+	go storage.Process()
 
-	return hs
-}
-
-func (hs *HashStore) Process() {
-	for job := range hs.queue.jobs {
-		switch job.Command {
-		case "HSET":
-			hs.HSet(job)
-		case "HGET":
-			hs.HGet(job)
-		default:
-			job.Response <- "ERROR: Unknown command"
-		}
-	}
+	return storage
 }
 
 func (hs *HashStore) AddJobHSet(key, field, value string) string {
@@ -122,7 +111,26 @@ func (hs *HashStore) AddJobHGet(key, field string) string {
 
 var Hs *HashStore = NewHashStorage(10)
 
-func Handler(command string, args []string) <-chan string {
+func (hs *HashStore) Process() {
+
+	commandHandlers := map[string]CommandHandlerHashStore{
+		"HGET": hs.HGet,
+		"HSET": hs.HSet,
+	}
+
+	for job := range hs.queue.jobs {
+
+		handler, exists := commandHandlers[job.Command]
+
+		if exists {
+			handler(job)
+		} else {
+			job.Response <- "ERROR: Unknown command"
+		}
+	}
+}
+
+func HandlerHashStore(command string, args []string) <-chan string {
 
 	response := make(chan string)
 
@@ -132,8 +140,10 @@ func Handler(command string, args []string) <-chan string {
 		switch command {
 		case "HSET":
 
-			if len(args) < 3 {
-				response <- "ERROR: HSET requires key, field, and value"
+			valid, errMsg := ValidateArgs(command, args, 3)
+
+			if !valid {
+				response <- errMsg
 				return
 			}
 
@@ -141,8 +151,10 @@ func Handler(command string, args []string) <-chan string {
 
 		case "HGET":
 
-			if len(args) < 2 {
-				response <- "ERROR: HGET requires key and field"
+			valid, errMsg := ValidateArgs(command, args, 2)
+
+			if !valid {
+				response <- errMsg
 				return
 			}
 
