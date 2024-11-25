@@ -1,6 +1,6 @@
 # Godis
 
-En **Godis** (una implementación ligera de Redis escrita en Go), intenta ser un projecto educativo y funcional en entornos de producion
+**Godis** es una implementación ligera de Redis escrita en Go, intenta ser un proyecto educativo y funcional en entornos de producion
 
 ## Instalación
 
