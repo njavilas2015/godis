@@ -102,13 +102,16 @@ func (hs *HashStore) AddJobHSet(key string, field string, value string) string {
 }
 
 func (hs *HashStore) AddJobHGet(key string, field string) string {
+
 	job := &JobHashStore{
 		Command:  "HGET",
 		Key:      key,
 		Field:    field,
 		Response: make(chan string),
 	}
+
 	hs.queue.Add(job)
+
 	return <-job.Response
 }
 

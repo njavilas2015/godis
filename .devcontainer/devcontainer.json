@@ -1,0 +1,32 @@
+{
+	"name": "Gorkspace",
+	"dockerFile": "Dockerfile",
+	"context": "..",
+	"runArgs": [
+		"--network",
+		"host",
+		"--env-file",
+		".devcontainer/.env"
+	],
+	"postCreateCommand": "echo 'Welcome!! Ya puedes trabajar'",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"go.environment.status": "enabled", 
+				"go.gopath": "/go",
+				"go.goroot": "/usr/local/go",
+				"go.useLanguageServer": true,
+				"go.formatTool": "gofmt",
+				"go.lintTool": "golangci-lint",
+				"go.toolsManagement.autoUpdate": false,
+				"go.toolsManagement.enabled": false,
+				"go.toolsManagement.installDependencies": "tools",
+				"terminal.integrated.shell.linux": "/bin/bash"
+			},
+			"extensions": [
+				"golang.go",
+				"streetsidesoftware.code-spell-checker"
+			]
+		}
+	}
+}

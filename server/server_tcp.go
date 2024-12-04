@@ -33,7 +33,13 @@ func handleConnection(conn net.Conn, callback CallbackFunc) {
 		parts := strings.Fields(strings.TrimSpace(message))
 
 		if len(parts) < 1 {
-			conn.Write([]byte("ERROR: Invalid command format\n"))
+			_, err := conn.Write([]byte("ERROR: Invalid command format\n"))
+
+			if err != nil {
+				log.Println("Error writing to connection:", err)
+				return
+			}
+
 			continue
 		}
 
@@ -45,7 +51,12 @@ func handleConnection(conn net.Conn, callback CallbackFunc) {
 
 		response := <-responseChan
 
-		conn.Write([]byte(response + "\n"))
+		_, err = conn.Write([]byte(response))
+
+		if err != nil {
+			log.Println("Error writing to connection:", err)
+			return
+		}
 	}
 }
 
