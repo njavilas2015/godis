@@ -6,7 +6,6 @@ import (
 )
 
 func main() {
-
 	servers := []server.ServerTCP{
 		{Port: "6480", Handler: internal.HandlerHashStore},
 		{Port: "6481", Handler: internal.HandlerKvStore},
@@ -15,9 +14,10 @@ func main() {
 	}
 
 	for _, s := range servers {
-
 		go server.TCPServer(s.Port, s.Handler)
 	}
+
+	go server.HTTPServer()
 
 	select {}
 }
