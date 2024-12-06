@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -74,6 +75,45 @@ func (hs *HashStore) HGet(job *JobHashStore) {
 	hs.mu.RUnlock()
 }
 
+func (hs *HashStore) Drop(job *JobHashStore) {
+
+	hs.mu.Lock()
+
+	defer hs.mu.Unlock()
+
+	hs.data = make(map[string]map[string]string)
+
+	job.Response <- "OK"
+}
+
+func (hs *HashStore) Has(job *JobHashStore) {
+
+	hs.mu.RLock()
+
+	defer hs.mu.RUnlock()
+
+	if _, exists := hs.data[job.Key]; exists {
+		job.Response <- "true"
+	} else {
+		job.Response <- "false"
+	}
+}
+
+func (hs *HashStore) All(job *JobHashStore) {
+
+	hs.mu.RLock()
+
+	defer hs.mu.RUnlock()
+
+	keys := make([]string, 0, len(hs.data))
+
+	for key := range hs.data {
+		keys = append(keys, key)
+	}
+
+	job.Response <- fmt.Sprintf("%v", keys)
+}
+
 func NewHashStorage(bufferSize int) *HashStore {
 
 	storage := &HashStore{
@@ -115,6 +155,30 @@ func (hs *HashStore) AddJobHGet(key string, field string) string {
 	return <-job.Response
 }
 
+func (hs *HashStore) AddJobDrop() string {
+
+	job := &JobHashStore{
+		Command:  "DROP",
+		Response: make(chan string),
+	}
+
+	hs.queue.Add(job)
+
+	return <-job.Response
+}
+
+func (hs *HashStore) AddJobAll() string {
+
+	job := &JobHashStore{
+		Command:  "ALL",
+		Response: make(chan string),
+	}
+
+	hs.queue.Add(job)
+
+	return <-job.Response
+}
+
 var Hs *HashStore = NewHashStorage(10)
 
 func (hs *HashStore) Process() {
@@ -122,6 +186,8 @@ func (hs *HashStore) Process() {
 	commandHandlers := map[string]CommandHandlerHashStore{
 		"HGET": hs.HGet,
 		"HSET": hs.HSet,
+		"DROP": hs.Drop,
+		"ALL":  hs.All,
 	}
 
 	for job := range hs.queue.jobs {
@@ -189,6 +255,24 @@ func HandlerHashStore(command string, args []string) <-chan string {
 			}
 
 			response <- Hs.AddJobHGet(args[0], args[1])
+
+		case "DROP":
+
+			if len(args) > 0 {
+				response <- "ERROR: DROPALL does not take arguments"
+				return
+			}
+
+			response <- Hs.AddJobDrop()
+
+		case "ALL":
+
+			if len(args) > 0 {
+				response <- "ERROR: READALL does not take arguments"
+				return
+			}
+
+			response <- Hs.AddJobAll()
 
 		default:
 			response <- "ERROR: Unknown command"
