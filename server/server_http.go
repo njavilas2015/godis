@@ -8,91 +8,71 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HandlerHSet(args []string) <-chan string {
-	response := make(chan string)
-
-	go func() {
-		defer close(response)
-
-		if len(args) < 3 || len(args)%2 == 0 {
-			response <- "ERROR: HSET incorrectly configured"
-			return
-		}
-
-		key := args[0]
-
-		for i := 1; i < len(args); i += 2 {
-			field := args[i]
-			value := args[i+1]
-
-			response <- internal.Hs.AddJobHSet(key, field, value)
-		}
-	}()
-
-	return response
-}
-
-func HandlerHGet(args []string) <-chan string {
-	response := make(chan string)
-
-	go func() {
-		defer close(response)
-
-		if len(args) != 2 {
-			response <- "ERROR: Invalid number of arguments for HGET"
-			return
-		}
-
-		key := args[0]
-		field := args[1]
-
-		response <- internal.Hs.AddJobHGet(key, field)
-	}()
-
-	return response
-}
-
 func HTTPServer() {
 
 	r := gin.Default()
 
-	r.POST("/hset", func(c *gin.Context) {
+	hash := r.Group("/hash")
+	{
 
-		var json struct {
-			Args []string `json:"args"`
-		}
+		hash.POST("/", func(c *gin.Context) {
 
-		if err := c.ShouldBindJSON(&json); err != nil {
-			c.JSON(400, gin.H{"error": "Invalid JSON"})
-			return
-		}
+			var json struct {
+				Args []string `json:"args"`
+			}
 
-		args := json.Args
+			if err := c.ShouldBindJSON(&json); err != nil {
+				c.JSON(400, gin.H{"error": "Invalid JSON"})
+				return
+			}
 
-		responseChan := HandlerHSet(args)
-		response := <-responseChan
+			args := json.Args
 
-		c.String(200, response)
-	})
+			responseChan := internal.HandlerHashStore("HSET", args)
 
-	r.POST("/hget", func(c *gin.Context) {
+			response := <-responseChan
 
-		var json struct {
-			Args []string `json:"args"`
-		}
+			c.String(200, response)
+		})
 
-		if err := c.ShouldBindJSON(&json); err != nil {
-			c.JSON(400, gin.H{"error": "Invalid JSON"})
-			return
-		}
+		hash.GET("/", func(c *gin.Context) {
 
-		args := json.Args
+			var json struct {
+				Args []string `json:"args"`
+			}
 
-		responseChan := HandlerHGet(args)
-		response := <-responseChan
+			if err := c.ShouldBindJSON(&json); err != nil {
+				c.JSON(400, gin.H{"error": "Invalid JSON"})
+				return
+			}
 
-		c.String(200, response)
-	})
+			args := json.Args
+
+			responseChan := internal.HandlerHashStore("HGET", args)
+
+			response := <-responseChan
+
+			c.String(200, response)
+		})
+
+		hash.GET("/all", func(c *gin.Context) {
+
+			responseChan := internal.HandlerHashStore("ALL", []string{})
+
+			response := <-responseChan
+
+			c.String(200, response)
+		})
+
+		hash.DELETE("/", func(c *gin.Context) {
+
+			responseChan := internal.HandlerHashStore("DROP", []string{})
+
+			response := <-responseChan
+
+			c.String(200, response)
+		})
+	}
 
 	err := r.Run(":8080")
 
