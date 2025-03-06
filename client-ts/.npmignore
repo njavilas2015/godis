@@ -1,0 +1,15 @@
+src
+*.sh
+*.yml
+*.yaml
+jsconfig.json
+*.log
+.babelrc
+dev.js
+Dockerfile
+node_modules
+tsconfig.json
+.env
+.eslintignore
+.npmrc
+.eslintrc

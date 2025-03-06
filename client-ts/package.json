@@ -1,0 +1,17 @@
+{
+    "name": "godis",
+    "version": "1.0.2",
+    "description": "Client TypeScript for Godis",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/client.js",
+        "dev": "tsc && node dist/client.js"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^22.10.1"
+    }
+}

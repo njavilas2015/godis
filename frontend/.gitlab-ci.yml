@@ -1,0 +1,78 @@
+stages:
+  - test
+  - build
+  - upload
+  - deploy
+  - notify
+
+variables:
+  DOCKER_IMAGE: registry.gitlab.com/aitsolutions18/boxer-back
+
+test:
+  stage: test
+  image: docker:latest
+
+  services:
+    - docker:dind
+
+  variables:
+    #ELASTICSEARCH_URL: http://elastic:9200
+
+  before_script:
+    - echo "Generate file env"
+
+    #- echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" >> .env
+
+    - apk add --no-cache docker-cli
+    - export TAG=${CI_COMMIT_REF_NAME}
+    - export TAG_DEBUG=${CI_COMMIT_REF_NAME}-debug
+    - docker login $CI_REGISTRY -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+
+  script:
+    - sed -i "s|\$DOCKER_IMAGE:\$TAG|${DOCKER_IMAGE}:${TAG}|g" docker-compose.yml
+
+    - docker-compose up -d db elastic
+
+    - echo "Build image Docker"
+    - docker build -t $DOCKER_IMAGE:$TAG .
+
+    - docker tag $DOCKER_IMAGE:$TAG $DOCKER_IMAGE:$TAG_DEBUG
+
+    - echo "Pushing Container Debug image to Registry Container"
+    - docker push $DOCKER_IMAGE:$TAG_DEBUG
+
+    - docker-compose up -d app
+
+    - docker-compose exec -w /app/src app bash -c 'mysql -u "$SQL_USER" -p"$SQL_PASSWORD" -h "$SQL_HOST" -P "$SQL_PORT" -e "DROP SCHEMA IF EXISTS $SQL_DATABASE; CREATE DATABASE $SQL_DATABASE CHARACTER SET latin1 COLLATE latin1_swedish_ci;"'  
+
+    - docker-compose exec -w /app/src app bash -c "mysql -u root -p\$MYSQL_ROOT_PASSWORD -h "$SQL_HOST" -P "$SQL_PORT" -e \"GRANT ALL PRIVILEGES ON *.* TO 'app'@'%' WITH GRANT OPTION; FLUSH PRIVILEGES;\""
+
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 -m black . --check
+
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 manage.py makemigrations --verbosity 3
+
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 manage.py migrate --verbosity 3
+
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 manage.py search_index --create
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 manage.py rebuild_index
+
+    - docker-compose exec -w /app/src app /app/venv/bin/python3 manage.py test --verbosity 3 --debug-mode
+
+
+    - echo "Pushing Container image to Registry Container"
+    - docker push $DOCKER_IMAGE:$TAG
+
+  after_script:
+    - rm -f /.env
+    
+  only:
+   - testing_1
+   - testing_2
+   - testing_3
+   - testing_4
+   - testing_5
+   - testing_6
+   - staging
+   - sre
+   - master
+   - master_meli

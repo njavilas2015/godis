@@ -1,0 +1,29 @@
+{
+  "name": "React DevContainer",
+  "context": "..",
+  "dockerFile": "Dockerfile",
+  "runArgs": [
+    "--network",
+    "host",
+    "--env-file",
+    ".devcontainer/.env"
+  ],
+  "postCreateCommand": "npm install --prefer-offline",
+  "postAttachCommand": "npm run dev",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "npm.packageManager": "npm"
+      },
+      "extensions": [
+        "vscode-styled-components",
+        "streetsidesoftware.code-spell-checker"
+      ]
+    }
+  },
+  "forwardPorts": [
+    5173
+  ],
+  "remoteUser": "node"
+}
